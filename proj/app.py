@@ -20,11 +20,11 @@ def get_location_key(city_name):
 
 def check_bad_weather(temperature, wind_speed, precipitation_probability):
     if temperature < 0 or temperature > 35:
-        return "Погода БЕ"
+        return "Погода плохая"
     if wind_speed > 50:
-        return "Погода БЕ"
+        return "Погода плохая"
     if precipitation_probability > 70:
-        return "Погода БЕ"
+        return "Погода плохая"
     return "Погода — кайфовая"
 
 @app.route('/')
