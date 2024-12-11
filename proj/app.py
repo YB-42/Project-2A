@@ -1,83 +1,92 @@
 import requests
-from flask import Flask, render_template
-import json
-
+from flask import Flask, render_template, request
 
 app = Flask(__name__)
 
-API_KEY = 'kbrOdBHB6pAkYDfKWHr9LOHhqctcFGmX'
-lat = '55.669986'
-lon = '37.773143'
+API_KEY = 'mUYuUqUwyTGa5S7IKkRWBloPTzVpTCU0'
 
-location_url = f"http://dataservice.accuweather.com/locations/v1/cities/geoposition/search?apikey={API_KEY}&q={lat},{lon}"
-location_response = requests.get(location_url)
-
-if location_response.status_code == 200:
-    location_data = location_response.json()
-    LOCATION_KEY = location_data['Key']
-else:
-    print(f"Ошибка при получении ключа местоположения: {location_response.status_code}")
-    LOCATION_KEY = None  # Установите в None, если не удалось получить ключ
-
+def get_location_key(city_name):
+    location_url = f"http://dataservice.accuweather.com/locations/v1/cities/search?apikey={API_KEY}&q={city_name}"
+    try:
+        response = requests.get(location_url)
+        response.raise_for_status()
+        location_data = response.json()
+        if location_data:
+            return location_data[0]['Key']
+    except requests.exceptions.HTTPError:
+        return None
+    except requests.exceptions.RequestException:
+        return None
 
 def check_bad_weather(temperature, wind_speed, precipitation_probability):
-    """
-    Функция для оценки погодных условий.
-
-    :param temperature: Температура в градусах Цельсия
-    :param wind_speed: Скорость ветра в км/ч
-    :param precipitation_probability: Вероятность осадков в процентах
-    :return: Строка "Плохие погодные условия" или "Хорошие погодные условия"
-    """
     if temperature < 0 or temperature > 35:
-        return "Плохие погодные условия"
+        return "Погода БЕ"
     if wind_speed > 50:
-        return "Плохие погодные условия"
+        return "Погода БЕ"
     if precipitation_probability > 70:
-        return "Плохие погодные условия"
-
-    return "Хорошие погодные условия"
-
+        return "Погода БЕ"
+    return "Погода — кайфовая"
 
 @app.route('/')
 def home():
-    return "Добро пожаловать в приложение погоды!"
+    return render_template('form.html')
 
-
-@app.route('/weather')
+@app.route('/weather', methods=['POST'])
 def get_weather():
-    if LOCATION_KEY is None:
-        return "Не удалось получить ключ местоположения", 500
+    start_city = request.form['start']
+    end_city = request.form['end']
 
-    url = f"http://dataservice.accuweather.com/currentconditions/v1/{LOCATION_KEY}?apikey={API_KEY}&language=ru-ru"
-    response = requests.get(url)
+    start_location_key = get_location_key(start_city)
+    end_location_key = get_location_key(end_city)
 
-    if response.status_code == 200:
-        data = response.json()
-        if len(data) > 0:  # Проверяем, что данные не пустые
-            weather_info = {
-                'temperature': data[0]['Temperature']['Metric']['Value'],
-                'humidity': data[0].get('RelativeHumidity', 'Нет данных'),
-                'wind_speed': data[0].get('Wind', {}).get('Speed', {}).get('Metric', {}).get('Value', 'Нет данных'),
-                'precipitation_probability': data[0].get('PrecipitationProbability', 'Нет данных')
-            }
+    if not start_location_key:
+        return render_template('form.html', error="Неверно введён город: " + start_city), 400
+    if not end_location_key:
+        return render_template('form.html', error="Неверно введён город: " + end_city), 400
 
-            # Преобразуем значения в нужный формат
-            temperature = float(weather_info['temperature'])
-            wind_speed = float(weather_info['wind_speed']) if weather_info['wind_speed'] != 'Нет данных' else 0
-            precipitation_probability = float(weather_info['precipitation_probability']) if weather_info[
-                                                                                                'precipitation_probability'] != 'Нет данных' else 0
+    start_weather_url = f"http://dataservice.accuweather.com/currentconditions/v1/{start_location_key}?apikey={API_KEY}&language=ru-ru"
+    end_weather_url = f"http://dataservice.accuweather.com/currentconditions/v1/{end_location_key}?apikey={API_KEY}&language=ru-ru"
 
-            # Проверяем погодные условия
-            weather_condition = check_bad_weather(temperature, wind_speed, precipitation_probability)
+    try:
+        start_response = requests.get(start_weather_url)
+        start_response.raise_for_status()
+        end_response = requests.get(end_weather_url)
+        end_response.raise_for_status()
 
-            # Возвращаем данные в HTML-шаблон
-            return render_template('weather.html', weather_info=weather_info, weather_condition=weather_condition)
-        else:
-            return "Нет данных о погоде", 404
-    else:
-        return "Не удалось получить данные о погоде", response.status_code
+        start_data = start_response.json()[0]
+        end_data = end_response.json()[0]
 
+        start_weather_info = {
+            'temperature': start_data['Temperature']['Metric']['Value'],
+            'wind_speed': start_data.get('Wind', {}).get('Speed', {}).get('Metric', {}).get('Value', 0),
+            'precipitation_probability': start_data.get('PrecipitationProbability', 0),
+            'humidity': start_data.get('RelativeHumidity', 0),
+            'weather_text': start_data.get('WeatherText', 'Нет данных')
+        }
+
+        end_weather_info = {
+            'temperature': end_data['Temperature']['Metric']['Value'],
+            'wind_speed': end_data.get('Wind', {}).get('Speed', {}).get('Metric', {}).get('Value', 0),
+            'precipitation_probability': end_data.get('PrecipitationProbability', 0),
+            'humidity': end_data.get('RelativeHumidity', 0),
+            'weather_text': end_data.get('WeatherText', 'Нет данных')
+        }
+
+        start_condition = check_bad_weather(float(start_weather_info['temperature']),
+                                            float(start_weather_info['wind_speed']),
+                                            float(start_weather_info['precipitation_probability']))
+
+        end_condition = check_bad_weather(float(end_weather_info['temperature']),
+                                           float(end_weather_info['wind_speed']),
+                                           float(end_weather_info['precipitation_probability']))
+
+        return render_template('results.html', start_city=start_city, end_city=end_city,
+                               start_condition=start_condition, end_condition=end_condition,
+                               start_weather_info=start_weather_info, end_weather_info=end_weather_info)
+    except requests.exceptions.RequestException:
+        return render_template('form.html', error="Ошибка попробуйте позже."), 500
+    except Exception as e:
+        return render_template('form.html', error=f"Ошибка: {str(e)}"), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
