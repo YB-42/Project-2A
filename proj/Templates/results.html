@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Результаты погоды</title>
+</head>
+<body>
+    <h1>Результаты погоды</h1>
+
+    <h2>Начальная точка: {{ start_city }}</h2>
+    <p>Температура: {{ start_weather_info.temperature }} °C</p>
+    <p>Описание погоды: {{ start_weather_info.weather_text }}</p>
+    <p>Состояние погоды: {{ start_condition }}</p>
+
+    <h2>Конечная точка: {{ end_city }}</h2>
+    <p>Температура: {{ end_weather_info.temperature }} °C</p>
+    <p>Описание погоды: {{ end_weather_info.weather_text }}</p>
+    <p>Состояние погоды: {{ end_condition }}</p>
+
+    <a href="/">Назад</a>
+</body>
+</html>

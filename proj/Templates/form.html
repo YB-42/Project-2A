@@ -7,6 +7,11 @@
 </head>
 <body>
     <h1>Введите начальную и конечную точки маршрута</h1>
+
+    {% if error %}
+        <div style="color: red;">{{ error }}</div>
+    {% endif %}
+
     <form action="/weather" method="post">
         <label for="start">Начальная точка:</label>
         <input type="text" id="start" name="start" required>
