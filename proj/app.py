@@ -3,7 +3,7 @@ from flask import Flask, render_template, request
 
 app = Flask(__name__)
 
-API_KEY = 'mUYuUqUwyTGa5S7IKkRWBloPTzVpTCU0'
+API_KEY = 'GdERTB5HxkEBtlollBaTCCyVzx424nti'
 
 def get_location_key(city_name):
     location_url = f"http://dataservice.accuweather.com/locations/v1/cities/search?apikey={API_KEY}&q={city_name}"
